@@ -1,0 +1,14 @@
+# Environment variables for HR Compensation Chatbot
+# Keep this file secure and don't commit to version control
+
+# AI API Configuration (Claude only)
+ANTHROPIC_API_KEY=< KEY >
+
+# Database Configuration
+DATABASE_PATH=compensation_data.db
+
+# Web Interface Configuration
+WEB_HOST=0.0.0.0
+WEB_PORT_BASIC=5001
+WEB_PORT_AI=5002
+DEBUG_MODE=True
