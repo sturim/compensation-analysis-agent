@@ -33,6 +33,10 @@ class AnalysisEngine:
         if not data or data.get('status') != 'success':
             return data
         
+        # Skip analysis for module queries - they have their own format
+        if data.get('query_type') == 'module':
+            return data
+        
         # Generate insights based on query type
         insights = self.generate_insights(data, query_type)
         

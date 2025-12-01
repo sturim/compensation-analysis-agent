@@ -35,15 +35,30 @@ class ResultFormatter:
         output.append("")
         
         # Summary box (if available) - Most important, show first
-        if 'summary' in results:
-            output.append(self._format_summary_box(results['summary']))
-            output.append("")
+        # Skip if this is a module query (has its own summary format)
+        if 'summary' in results and results.get('query_type') != 'module':
+            if isinstance(results['summary'], str):
+                output.append(self._format_summary_box(results['summary']))
+                output.append("")
         
-        # DATA TABLE
-        if 'data' in results and results['data']:
-            df = pd.DataFrame(results['data'])
-            output.append(self.format_table(df, "Detailed Data"))
-            output.append("")
+        # Handle module query results differently
+        if results.get('query_type') == 'module':
+            # Module summary
+            if 'summary' in results:
+                output.append(self._format_module_summary(results))
+                output.append("")
+            
+            # Breakdown by function
+            if 'breakdown' in results and results['breakdown']:
+                df = pd.DataFrame(results['breakdown'])
+                output.append(self.format_table(df, "Breakdown by Job Function"))
+                output.append("")
+        else:
+            # DATA TABLE
+            if 'data' in results and results['data']:
+                df = pd.DataFrame(results['data'])
+                output.append(self.format_table(df, "Detailed Data"))
+                output.append("")
         
         # Insights section with visual hierarchy
         if 'insights' in results and results['insights']:
@@ -55,6 +70,18 @@ class ResultFormatter:
             output.append(self._format_response_box(response))
             output.append("")
         
+        # Warning section (if any)
+        if 'warning' in results:
+            output.append(self._format_warning_box(results['warning']))
+            output.append("")
+        
+        # Validation warnings
+        if 'validation' in results:
+            validation = results['validation']
+            if validation.get('discrepancies') or validation.get('warnings'):
+                output.append(self._format_validation_box(validation))
+                output.append("")
+        
         # Metadata section
         metadata = []
         if 'chart_path' in results:
@@ -62,7 +89,11 @@ class ResultFormatter:
         if 'tool_used' in results:
             metadata.append(f"🔧 Tool: {results['tool_used']}")
         if 'row_count' in results:
-            metadata.append(f"📈 Rows: {results['row_count']}")
+            total_available = results.get('total_available', results['row_count'])
+            if results.get('is_limited'):
+                metadata.append(f"📈 Rows: {results['row_count']} of {total_available} total")
+            else:
+                metadata.append(f"📈 Rows: {results['row_count']}")
         
         if metadata:
             output.append(self._format_metadata_section(metadata))
@@ -72,6 +103,42 @@ class ResultFormatter:
         output.append(self._format_footer())
         
         return "\n".join(output)
+    
+    def _format_module_summary(self, results: Dict[str, Any]) -> str:
+        """Format module query summary"""
+        module = results.get('module', 'Unknown')
+        summary = results.get('summary', {})
+        
+        lines = []
+        lines.append("┏" + "━" * 98 + "┓")
+        lines.append("┃" + f" 📊 {module.upper()} MODULE SUMMARY".ljust(99) + "┃")
+        lines.append("┣" + "━" * 98 + "┫")
+        
+        # Format summary stats
+        stats = []
+        stats.append(f"Total Employees: {summary.get('total_employees', 0):,}")
+        stats.append(f"Total Positions: {summary.get('total_positions', 0):,}")
+        stats.append(f"Unique Functions: {summary.get('unique_functions', 0)}")
+        stats.append(f"Unique Levels: {summary.get('unique_levels', 0)}")
+        stats.append(f"Avg Salary: ${summary.get('avg_salary', 0):,.0f}")
+        stats.append(f"Range: ${summary.get('min_salary', 0):,.0f} - ${summary.get('max_salary', 0):,.0f}")
+        
+        summary_text = " | ".join(stats)
+        
+        # Wrap if too long
+        if len(summary_text) > 96:
+            # Split into two lines
+            mid = len(stats) // 2
+            line1 = " | ".join(stats[:mid])
+            line2 = " | ".join(stats[mid:])
+            lines.append("┃ " + line1.ljust(98) + "┃")
+            lines.append("┃ " + line2.ljust(98) + "┃")
+        else:
+            lines.append("┃ " + summary_text.ljust(98) + "┃")
+        
+        lines.append("┗" + "━" * 98 + "┛")
+        
+        return "\n".join(lines)
     
     def _format_summary_box(self, summary: str) -> str:
         """Format summary in a highlighted box"""
@@ -123,6 +190,82 @@ class ResultFormatter:
                     lines.append(current_line.ljust(69) + "│")
             else:
                 lines.append(f"│ {i}. {insight}".ljust(69) + "│")
+        
+        lines.append("└" + "─" * 68 + "┘")
+        
+        return "\n".join(lines)
+    
+    def _format_warning_box(self, warning: str) -> str:
+        """Format warning message in a box"""
+        lines = []
+        lines.append("┌" + "─" * 68 + "┐")
+        lines.append("│ ⚠️  WARNING".ljust(69) + "│")
+        lines.append("├" + "─" * 68 + "┤")
+        
+        # Wrap warning if too long
+        if len(warning) > 64:
+            words = warning.split()
+            current_line = "│ "
+            for word in words:
+                if len(current_line) + len(word) + 1 <= 68:
+                    current_line += word + " "
+                else:
+                    lines.append(current_line.ljust(69) + "│")
+                    current_line = "│ " + word + " "
+            if current_line.strip() != "│":
+                lines.append(current_line.ljust(69) + "│")
+        else:
+            lines.append(("│ " + warning).ljust(69) + "│")
+        
+        lines.append("└" + "─" * 68 + "┘")
+        
+        return "\n".join(lines)
+    
+    def _format_validation_box(self, validation: Dict[str, Any]) -> str:
+        """Format validation results in a box"""
+        lines = []
+        lines.append("┌" + "─" * 68 + "┐")
+        lines.append("│ 🔍 VALIDATION RESULTS".ljust(69) + "│")
+        lines.append("├" + "─" * 68 + "┤")
+        
+        discrepancies = validation.get('discrepancies', [])
+        warnings = validation.get('warnings', [])
+        
+        if discrepancies:
+            lines.append("│ Discrepancies:".ljust(69) + "│")
+            for disc in discrepancies:
+                if len(disc) > 64:
+                    words = disc.split()
+                    current_line = "│   • "
+                    for word in words:
+                        if len(current_line) + len(word) + 1 <= 68:
+                            current_line += word + " "
+                        else:
+                            lines.append(current_line.ljust(69) + "│")
+                            current_line = "│     " + word + " "
+                    if current_line.strip() != "│":
+                        lines.append(current_line.ljust(69) + "│")
+                else:
+                    lines.append(("│   • " + disc).ljust(69) + "│")
+        
+        if warnings:
+            if discrepancies:
+                lines.append("│".ljust(69) + "│")
+            lines.append("│ Warnings:".ljust(69) + "│")
+            for warn in warnings:
+                if len(warn) > 64:
+                    words = warn.split()
+                    current_line = "│   • "
+                    for word in words:
+                        if len(current_line) + len(word) + 1 <= 68:
+                            current_line += word + " "
+                        else:
+                            lines.append(current_line.ljust(69) + "│")
+                            current_line = "│     " + word + " "
+                    if current_line.strip() != "│":
+                        lines.append(current_line.ljust(69) + "│")
+                else:
+                    lines.append(("│   • " + warn).ljust(69) + "│")
         
         lines.append("└" + "─" * 68 + "┘")
         

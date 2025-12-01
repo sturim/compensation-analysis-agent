@@ -5,14 +5,26 @@ No LLM needed for simple parsing
 """
 
 import re
+import sqlite3
 from typing import Dict, Optional, List, Any
+from difflib import get_close_matches
 
 
 class EntityParser:
     """Fast entity extraction using regex and keyword matching"""
     
-    def __init__(self):
-        # Job function patterns
+    def __init__(self, db_path: str = 'compensation_data.db'):
+        """
+        Initialize entity parser.
+        
+        Args:
+            db_path: Path to database for validation
+        """
+        self.db_path = db_path
+        self._db_job_functions = None  # Cache for database job functions
+        self._db_job_modules = None  # Cache for database job modules
+        
+        # Job function patterns (fallback for when DB not available)
         self.functions = {
             'engineering': ['engineering', 'engineer', 'software', 'technical'],
             'finance': ['finance', 'financial', 'accounting', 'treasury'],
@@ -21,6 +33,14 @@ class EntityParser:
             'human resources': ['hr', 'human resources', 'people', 'talent'],
             'legal': ['legal', 'counsel', 'compliance'],
             'operations': ['operations', 'ops'],
+            'creative': ['creative', 'design', 'designer'],
+            'infrastructure': ['infrastructure', 'infra'],
+        }
+        
+        # Job module patterns
+        self.modules = {
+            'infrastructure': ['infrastructure', 'infra'],
+            'technology': ['technology', 'tech'],
         }
         
         # Job level patterns
@@ -58,36 +78,53 @@ class EntityParser:
         """
         question_lower = question.lower()
         
-        return {
+        entities = {
             'functions': self._extract_functions(question_lower),
+            'modules': self._extract_modules(question_lower),
             'levels': self._extract_levels(question_lower),
             'intent': self._extract_intent(question_lower),
             'metrics': self._extract_metrics(question_lower),
             'percentile': self._extract_percentile(question_lower),
             'original_question': question
         }
+        
+        # Validate against database
+        entities = self.validate_against_db(entities)
+        
+        return entities
     
     def _extract_functions(self, text: str) -> List[str]:
         """Extract job functions from text"""
         found = []
-        for function, keywords in self.functions.items():
-            for keyword in keywords:
-                # Use word boundaries to avoid false matches
-                # e.g., "people" in "engineering people" shouldn't match HR
-                if keyword in ['hr', 'ops']:
-                    # Short keywords need exact match or word boundary
-                    import re
-                    if re.search(r'\b' + keyword + r'\b', text):
+        
+        # First, try to match against actual database values
+        db_functions = self._load_db_job_functions()
+        if db_functions:
+            for db_func in db_functions:
+                # Check if the database function name appears in the text
+                if db_func.lower() in text:
+                    found.append(db_func)
+        
+        # If no DB matches, fall back to keyword matching
+        if not found:
+            for function, keywords in self.functions.items():
+                for keyword in keywords:
+                    # Use word boundaries to avoid false matches
+                    # e.g., "people" in "engineering people" shouldn't match HR
+                    if keyword in ['hr', 'ops']:
+                        # Short keywords need exact match or word boundary
+                        if re.search(r'\b' + keyword + r'\b', text):
+                            found.append(function.title())
+                            break
+                    elif keyword == 'people':
+                        # Only match "people" if it's part of "people operations" or "people team"
+                        if 'people operations' in text or 'people team' in text or 'people department' in text:
+                            found.append(function.title())
+                            break
+                    elif keyword in text:
                         found.append(function.title())
                         break
-                elif keyword == 'people':
-                    # Only match "people" if it's part of "people operations" or "people team"
-                    if 'people operations' in text or 'people team' in text or 'people department' in text:
-                        found.append(function.title())
-                        break
-                elif keyword in text:
-                    found.append(function.title())
-                    break
+        
         return found
     
     def _extract_levels(self, text: str) -> List[str]:
@@ -135,6 +172,181 @@ class EntityParser:
                 return percentile
         
         return 'p50'  # default to median
+    
+    def _load_db_job_functions(self) -> List[str]:
+        """Load distinct job functions from database"""
+        if self._db_job_functions is not None:
+            return self._db_job_functions
+        
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=5)
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT job_function FROM job_positions ORDER BY job_function")
+            self._db_job_functions = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            return self._db_job_functions
+        except Exception as e:
+            print(f"⚠️  Could not load job functions from database: {e}")
+            return []
+    
+    def _load_db_job_modules(self) -> List[str]:
+        """Load distinct job modules from database"""
+        if self._db_job_modules is not None:
+            return self._db_job_modules
+        
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=5)
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT job_module FROM job_positions WHERE job_module IS NOT NULL ORDER BY job_module")
+            self._db_job_modules = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            return self._db_job_modules
+        except Exception as e:
+            print(f"⚠️  Could not load job modules from database: {e}")
+            return []
+    
+    def _extract_modules(self, text: str) -> List[str]:
+        """Extract job modules from text"""
+        found = []
+        
+        # First, try to match against actual database values
+        db_modules = self._load_db_job_modules()
+        if db_modules:
+            for db_module in db_modules:
+                # Check if the database module name appears in the text
+                if db_module.lower() in text:
+                    found.append(db_module)
+        
+        # If no DB matches, fall back to keyword matching
+        if not found:
+            for module, keywords in self.modules.items():
+                for keyword in keywords:
+                    if keyword in text:
+                        found.append(module.title())
+                        break
+        
+        return found
+    
+    def get_exact_match(self, term: str, db_values: List[str]) -> Optional[str]:
+        """
+        Find exact case-insensitive match in database values.
+        
+        Args:
+            term: Term to match
+            db_values: List of valid database values
+            
+        Returns:
+            Exact match or None
+        """
+        term_lower = term.lower().strip()
+        
+        for value in db_values:
+            if value.lower() == term_lower:
+                return value
+        
+        return None
+    
+    def suggest_alternatives(
+        self, 
+        term: str, 
+        db_values: List[str], 
+        max_suggestions: int = 3
+    ) -> List[str]:
+        """
+        Suggest similar values when exact match not found.
+        
+        Args:
+            term: Term to match
+            db_values: List of valid database values
+            max_suggestions: Maximum number of suggestions
+            
+        Returns:
+            List of suggested alternatives
+        """
+        # Use difflib for fuzzy matching
+        matches = get_close_matches(term, db_values, n=max_suggestions, cutoff=0.6)
+        return matches
+    
+    def requires_user_confirmation(self, extracted: str, matched: str) -> bool:
+        """
+        Determine if user confirmation needed before using approximation.
+        
+        Args:
+            extracted: Originally extracted term
+            matched: Matched database value
+            
+        Returns:
+            True if confirmation needed
+        """
+        # Always require confirmation if not exact match
+        return extracted.lower() != matched.lower()
+    
+    def validate_against_db(self, entities: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate extracted entities exist in database.
+        
+        Args:
+            entities: Extracted entities
+            
+        Returns:
+            Updated entities with validation info
+        """
+        db_functions = self._load_db_job_functions()
+        db_modules = self._load_db_job_modules()
+        
+        if not db_functions and not db_modules:
+            # Database not available, return as-is
+            return entities
+        
+        validated_functions = []
+        validated_modules = []
+        suggestions = []
+        
+        # Validate functions
+        for func in entities.get('functions', []):
+            # Try exact match
+            exact_match = self.get_exact_match(func, db_functions)
+            
+            if exact_match:
+                validated_functions.append(exact_match)
+            else:
+                # No exact match, suggest alternatives
+                alternatives = self.suggest_alternatives(func, db_functions)
+                if alternatives:
+                    suggestions.append({
+                        'type': 'function',
+                        'original': func,
+                        'alternatives': alternatives,
+                        'requires_confirmation': True
+                    })
+        
+        # Validate modules
+        for module in entities.get('modules', []):
+            # Try exact match
+            exact_match = self.get_exact_match(module, db_modules)
+            
+            if exact_match:
+                validated_modules.append(exact_match)
+            else:
+                # No exact match, suggest alternatives
+                alternatives = self.suggest_alternatives(module, db_modules)
+                if alternatives:
+                    suggestions.append({
+                        'type': 'module',
+                        'original': module,
+                        'alternatives': alternatives,
+                        'requires_confirmation': True
+                    })
+        
+        # Update entities
+        entities['functions'] = validated_functions
+        entities['modules'] = validated_modules
+        entities['validation'] = {
+            'has_suggestions': len(suggestions) > 0,
+            'suggestions': suggestions
+        }
+        
+        return entities
 
 
 if __name__ == "__main__":
