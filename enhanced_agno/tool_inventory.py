@@ -22,20 +22,122 @@ class ToolInfo:
     capabilities: List[str]
     last_modified: datetime
     
-    def matches(self, functions: List[str], intent: str) -> bool:
-        """Check if this tool matches the query"""
+    def matches(self, functions: List[str], intent: str, question: str = "", claude_client=None) -> bool:
+        """
+        Check if this tool matches the query using LLM for intelligent matching.
+        Falls back to rule-based matching if LLM unavailable.
+        
+        Args:
+            functions: Extracted function names
+            intent: Query intent (compare, query, visualize, etc.)
+            question: Original user question for context
+            claude_client: Optional Claude client for LLM matching
+            
+        Returns:
+            True if tool matches the query
+        """
+        # Use LLM matching if available
+        if claude_client and question:
+            return self._llm_matches(functions, intent, question, claude_client)
+        
+        # Fallback to rule-based matching
+        return self._rule_based_matches(functions, intent)
+    
+    def _llm_matches(self, functions: List[str], intent: str, question: str, claude_client) -> bool:
+        """Use LLM to intelligently match tool to query"""
+        try:
+            prompt = f"""You are a tool matching assistant. Determine if a tool matches a user's query.
+
+User Question: "{question}"
+Extracted Intent: {intent}
+Extracted Functions: {functions}
+
+Available Tool:
+- Name: {self.name}
+- Description: {self.description}
+- Capabilities: {self.capabilities}
+
+Rules:
+1. Comparison tools (with "compare", "vs" in name) should ONLY match comparison queries with 2+ functions
+2. Single-function tools should ONLY match queries about that specific function
+3. Don't match a comparison tool for a single-function query
+4. Consider the intent: query/analyze vs compare vs visualize
+
+Should this tool be used for this query?
+Respond with ONLY "YES" or "NO" followed by a brief reason.
+
+Example responses:
+YES - Tool compares Engineering and Finance, query asks to compare them
+NO - Tool is for comparison but query asks for single function data
+NO - Tool is for Engineering but query asks for Finance
+YES - Tool provides Finance salaries and query asks for Finance data"""
+
+            response = claude_client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=100,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            answer = response.content[0].text.strip().upper()
+            return answer.startswith("YES")
+            
+        except Exception as e:
+            # Fallback to rule-based on error
+            return self._rule_based_matches(functions, intent)
+    
+    def _rule_based_matches(self, functions: List[str], intent: str) -> bool:
+        """Fallback rule-based matching"""
         name_lower = self.name.lower()
         
-        # Match function names
-        for func in functions:
-            if func.lower() in name_lower:
-                # Match intent
-                if intent in ['query', 'analyze'] and 'analysis' in name_lower:
-                    return True
-                if intent in ['visualize', 'show', 'display'] and 'chart' in name_lower:
-                    return True
-                if intent == 'compare' and 'compare' in name_lower:
-                    return True
+        # For comparison tools, require compare intent and multiple functions
+        if 'compare' in name_lower or '_vs_' in name_lower or ' vs ' in name_lower:
+            # This is a comparison tool - only match for comparison queries
+            if intent != 'compare' or len(functions) < 2:
+                return False
+            # Check if all functions are in the tool name
+            return all(func.lower() in name_lower for func in functions)
+        
+        # For single-function queries, ensure tool doesn't contain other function names
+        if len(functions) == 1:
+            func = functions[0].lower()
+            if func not in name_lower:
+                return False
+            
+            # Make sure tool doesn't contain other function names (indicating it's a comparison)
+            # Check for common abbreviations too
+            function_patterns = {
+                'engineering': ['engineering', 'eng'],
+                'finance': ['finance', 'fin'],
+                'sales': ['sales'],
+                'marketing': ['marketing', 'mkt'],
+                'hr': ['hr', 'human'],
+            }
+            
+            # Get patterns for current function
+            current_patterns = []
+            for key, patterns in function_patterns.items():
+                if func in patterns or key == func:
+                    current_patterns = patterns
+                    break
+            
+            # Check if tool contains other function names
+            for key, patterns in function_patterns.items():
+                # Skip current function
+                if func in patterns or key == func:
+                    continue
+                # Check if any pattern for other functions is in tool name
+                for pattern in patterns:
+                    if pattern in name_lower:
+                        return False
+            
+            # Match intent
+            if intent in ['query', 'analyze'] and ('analysis' in name_lower or 'salary' in name_lower):
+                return True
+            if intent in ['visualize', 'show', 'display'] and ('chart' in name_lower or 'viz' in name_lower):
+                return True
+            # For general queries, match if tool name contains the function
+            if intent == 'query':
+                return True
         
         return False
 
@@ -48,9 +150,10 @@ class ToolInventory:
     This is how Kiro works - check what exists first!
     """
     
-    def __init__(self, workspace_path: str = "."):
+    def __init__(self, workspace_path: str = ".", claude_client=None):
         self.workspace_path = Path(workspace_path)
         self.tools: Dict[str, ToolInfo] = {}
+        self.claude_client = claude_client
         self.scan_workspace()
     
     def scan_workspace(self):
@@ -161,39 +264,10 @@ class ToolInventory:
         if not functions:
             return None
         
-        # Try exact matches first
+        # Use the matches() method with LLM support
         for tool_name, tool_info in self.tools.items():
-            if tool_info.matches(functions, intent):
+            if tool_info.matches(functions, intent, question, self.claude_client):
                 return tool_name
-        
-        # For simple queries (not comparisons), only match if tool name
-        # contains ONLY the function name (not multiple functions)
-        if intent in ['query', 'analyze', 'visualize'] and len(functions) == 1:
-            func = functions[0]
-            func_lower = func.lower()
-            
-            for tool_name in self.tools.keys():
-                tool_lower = tool_name.lower()
-                # Only match if:
-                # 1. Tool contains the function name
-                # 2. Tool doesn't contain "vs" or multiple function names
-                if func_lower in tool_lower and 'vs' not in tool_lower and '_vs_' not in tool_lower:
-                    # Make sure it's not a comparison tool
-                    other_functions = ['engineering', 'finance', 'sales', 'marketing', 'hr']
-                    other_functions.remove(func_lower)
-                    
-                    # Check if tool contains other function names
-                    has_other_functions = any(other in tool_lower for other in other_functions)
-                    if not has_other_functions:
-                        return tool_name
-        
-        # For comparison queries, match tools with "vs" or "compare"
-        elif intent == 'compare' and len(functions) >= 2:
-            for tool_name in self.tools.keys():
-                tool_lower = tool_name.lower()
-                # Check if tool contains both functions
-                if all(func.lower() in tool_lower for func in functions):
-                    return tool_name
         
         return None
     

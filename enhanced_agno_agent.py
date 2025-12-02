@@ -73,7 +73,7 @@ class EnhancedAgnoAgent:
         self.entity_parser = EntityParser()
         self.conversation = ConversationManager()
         self.viz_engine = VisualizationEngine(db_path=self.db_path, claude_client=self.claude_client)
-        self.tool_inventory = ToolInventory()  # Discover existing tools
+        self.tool_inventory = ToolInventory(claude_client=self.claude_client)  # Discover existing tools with LLM support
         self.analysis_engine = AnalysisEngine()  # Generate insights
         self.formatter = ResultFormatter()  # Format output beautifully
         
