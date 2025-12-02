@@ -128,10 +128,13 @@ Return 2-4 steps as a JSON array:"""
             return self._fallback_response(results)
         
         try:
+            # Convert numpy types to native Python types for JSON serialization
+            serializable_results = self._make_json_serializable(results)
+            
             prompt = f"""Generate a helpful, conversational response.
 
 Question: {question}
-Results: {json.dumps(results, indent=2)}
+Results: {json.dumps(serializable_results, indent=2)}
 
 Include:
 1. Direct answer to the question
@@ -153,6 +156,31 @@ Be conversational and use specific numbers. Keep it concise.
         except Exception as e:
             print(f"⚠️  LLM response generation failed: {e}")
             return self._fallback_response(results)
+    
+    def _make_json_serializable(self, obj: Any) -> Any:
+        """
+        Convert numpy types and other non-serializable objects to JSON-serializable types.
+        
+        Args:
+            obj: Object to convert
+            
+        Returns:
+            JSON-serializable version of the object
+        """
+        import numpy as np
+        
+        if isinstance(obj, dict):
+            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._make_json_serializable(item) for item in obj]
+        elif isinstance(obj, (np.integer, np.int64, np.int32)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float64, np.float32)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return obj
     
     def _fallback_response(self, results: Dict[str, Any]) -> str:
         """Fallback response without LLM"""
