@@ -58,10 +58,21 @@ class EnhancedAgnoAgent:
         self.db_path = 'compensation_data.db'
         self.debug = debug  # Debug flag for verbose output
         
+        # Initialize Claude first (needed for LLM-guided visualization)
+        self.claude_client = None
+        if CLAUDE_AVAILABLE:
+            api_key = os.getenv('ANTHROPIC_API_KEY')
+            if api_key and api_key != 'your-claude-api-key-here':
+                try:
+                    self.claude_client = anthropic.Anthropic(api_key=api_key)
+                    print("✅ Claude AI initialized")
+                except Exception as e:
+                    print(f"⚠️  Claude initialization failed: {e}")
+        
         # Initialize core components
         self.entity_parser = EntityParser()
         self.conversation = ConversationManager()
-        self.viz_engine = VisualizationEngine()
+        self.viz_engine = VisualizationEngine(db_path=self.db_path, claude_client=self.claude_client)
         self.tool_inventory = ToolInventory()  # Discover existing tools
         self.analysis_engine = AnalysisEngine()  # Generate insights
         self.formatter = ResultFormatter()  # Format output beautifully
@@ -74,17 +85,7 @@ class EnhancedAgnoAgent:
         self.result_validator = ResultValidator()  # Validate query results
         self.query_logger = QueryLogger(enabled=debug, verbose=debug)  # Log queries
         
-        # Initialize Claude if available
-        self.claude_client = None
-        if CLAUDE_AVAILABLE:
-            api_key = os.getenv('ANTHROPIC_API_KEY')
-            if api_key and api_key != 'your-claude-api-key-here':
-                try:
-                    self.claude_client = anthropic.Anthropic(api_key=api_key)
-                    print("✅ Claude AI initialized")
-                except Exception as e:
-                    print(f"⚠️  Claude initialization failed: {e}")
-        
+        # Initialize LLM orchestrator
         self.llm = LLMOrchestrator(self.claude_client, self.conversation)
         
         print("🤖 Enhanced Agno Agent Ready (Full Feature Set)")
@@ -153,32 +154,71 @@ class EnhancedAgnoAgent:
             if not entities['functions']:
                 entities['functions'] = reference['functions']
         
-        # Step 2: Check for existing tools (NEW!)
-        print("   [2/5] Checking for existing tools...")
-        existing_tool = self.tool_inventory.match_query_to_tool(question, entities)
-        
-        if existing_tool:
-            print(f"         ✅ Found existing tool: {existing_tool}")
-            print("   [3/5] Executing existing tool...")
-            results = self.tool_inventory.execute_tool(existing_tool)
+        # Step 2: Handle comparison queries specially
+        if entities['intent'] == 'compare' and len(entities['functions']) == 2:
+            print("   [2/5] Detected comparison query...")
+            print("   [3/5] Querying both functions...")
             
-            # Skip to response generation
-            print("   [4/5] Skipping new query creation (using existing tool)")
+            # Query both functions
+            func1, func2 = entities['functions']
+            
+            # Query first function
+            entities_func1 = entities.copy()
+            entities_func1['functions'] = [func1]
+            data1 = self._query_database(entities_func1, {})
+            
+            # Query second function
+            entities_func2 = entities.copy()
+            entities_func2['functions'] = [func2]
+            data2 = self._query_database(entities_func2, {})
+            
+            print("   [4/5] Creating comparison...")
+            # Use comparison engine
+            comparison = self.comparison_engine.compare_functions(data1, data2, func1, func2)
+            
+            # Create visualization
+            chart_path = self._create_comparison_visualization(data1, data2, func1, func2)
+            
+            results = {
+                'query_results': {
+                    'data': data1.get('data', []) + data2.get('data', []),
+                    'status': 'success',
+                    'row_count': data1.get('row_count', 0) + data2.get('row_count', 0)
+                },
+                'comparison': comparison,
+                'chart_path': chart_path,
+                'function1_data': data1,
+                'function2_data': data2
+            }
+            
             print("   [5/5] Generating response...")
         else:
-            print("         No existing tool found, creating new query...")
+            # Step 2: Check for existing tools (NEW!)
+            print("   [2/5] Checking for existing tools...")
+            existing_tool = self.tool_inventory.match_query_to_tool(question, entities)
             
-            # Step 3: LLM creates plan
-            print("   [3/5] Creating execution plan...")
-            plan_result = self.llm.plan_execution(question, entities)
-            plan = plan_result['plan']
-            print(f"         Plan: {len(plan)} steps ({plan_result['source']})")
-            
-            # Step 4: Execute plan
-            print("   [4/5] Executing plan...")
-            results = self._execute_plan(plan, entities)
-            
-            print("   [5/5] Generating response...")
+            if existing_tool:
+                print(f"         ✅ Found existing tool: {existing_tool}")
+                print("   [3/5] Executing existing tool...")
+                results = self.tool_inventory.execute_tool(existing_tool)
+                
+                # Skip to response generation
+                print("   [4/5] Skipping new query creation (using existing tool)")
+                print("   [5/5] Generating response...")
+            else:
+                print("         No existing tool found, creating new query...")
+                
+                # Step 3: LLM creates plan
+                print("   [3/5] Creating execution plan...")
+                plan_result = self.llm.plan_execution(question, entities)
+                plan = plan_result['plan']
+                print(f"         Plan: {len(plan)} steps ({plan_result['source']})")
+                
+                # Step 4: Execute plan
+                print("   [4/5] Executing plan...")
+                results = self._execute_plan(plan, entities)
+                
+                print("   [5/5] Generating response...")
         
         # Enhance results with analysis
         intent = entities.get('intent', 'query')
@@ -646,6 +686,18 @@ class EnhancedAgnoAgent:
             'median_salary': sorted(salaries)[len(salaries)//2] if salaries else 0,
         }
     
+    def _create_comparison_visualization(self, data1: Dict[str, Any], data2: Dict[str, Any], 
+                                        func1: str, func2: str) -> Optional[str]:
+        """Create comparison visualization for two functions"""
+        try:
+            chart_path = self.viz_engine.create_comparison_chart(func1, func2)
+            if chart_path:
+                print(f"         ✅ Chart saved: {chart_path}")
+            return chart_path
+        except Exception as e:
+            print(f"         ⚠️  Visualization failed: {e}")
+            return None
+    
     def _create_visualization(self, results: Dict[str, Any], 
                              entities: Dict[str, Any], params: Dict[str, Any]) -> Optional[str]:
         """Create visualization from results"""
@@ -654,6 +706,23 @@ class EnhancedAgnoAgent:
         if query_results.get('status') != 'success':
             return None
         
+        functions = entities.get('functions', [])
+        intent = entities.get('intent', 'query')
+        
+        # Route to comprehensive overview for single function
+        if len(functions) == 1 and intent in ['query', 'visualize', 'progression']:
+            job_function = functions[0]
+            chart_path = self.viz_engine.create_salary_overview(job_function)
+            if chart_path:
+                return chart_path
+        
+        # Route to comparison for multiple functions
+        elif len(functions) >= 2 and intent == 'compare':
+            chart_path = self.viz_engine.create_comparison_chart(functions[0], functions[1])
+            if chart_path:
+                return chart_path
+        
+        # Fallback to basic visualization
         data = query_results.get('data', [])
         if not data:
             return None
@@ -662,7 +731,6 @@ class EnhancedAgnoAgent:
         df = pd.DataFrame(data)
         
         # Determine chart type
-        intent = entities.get('intent', 'query')
         chart_type = params.get('type', 'distribution')
         
         if intent == 'compare' or chart_type == 'comparison':
@@ -671,10 +739,12 @@ class EnhancedAgnoAgent:
             chart_type = 'progression'
         
         # Create title
-        functions = entities.get('functions', ['All'])
         title = f"{' vs '.join(functions)} Compensation"
         
-        return self.viz_engine.auto_visualize(df, chart_type, title)
+        # Pass query and entities for LLM-guided visualization
+        query = entities.get('original_question', '')
+        
+        return self.viz_engine.auto_visualize(df, chart_type, title, query=query, entities=entities)
     
     def create_session(self, session_id: str = None) -> str:
         """Create a new session and return its ID"""
@@ -753,10 +823,17 @@ class EnhancedAgnoAgent:
                     print("\n📜 Conversation History:")
                     if self.conversation.history:
                         for i, item in enumerate(self.conversation.history[-5:], 1):
-                            print(f"\n{i}. {item.get('question', 'Unknown')}")
-                            entities = item.get('entities', {})
-                            print(f"   Functions: {entities.get('functions', [])}")
-                            print(f"   Intent: {entities.get('intent', 'unknown')}")
+                            # Handle Interaction objects (dataclass)
+                            if hasattr(item, 'question'):
+                                print(f"\n{i}. {item.question}")
+                                print(f"   Functions: {item.entities.get('functions', [])}")
+                                print(f"   Intent: {item.entities.get('intent', 'unknown')}")
+                            else:
+                                # Fallback for dict format
+                                print(f"\n{i}. {item.get('question', 'Unknown')}")
+                                entities = item.get('entities', {})
+                                print(f"   Functions: {entities.get('functions', [])}")
+                                print(f"   Intent: {entities.get('intent', 'unknown')}")
                     else:
                         print("   No history yet")
                     continue

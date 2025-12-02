@@ -1,0 +1,812 @@
+[
+  {
+    "id": 0,
+    "initial_question": "Compare Finance and Business Operations and tell me the % difference in Total Compensation across Senior Supervisors.",
+    "follow_ups": [
+      "Should I use Base, Total Cash, or Variable Pay for comparison?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 1,
+    "initial_question": "Compare Engineering and Business Operations and tell me the % difference in Base Salary across Manager level.",
+    "follow_ups": [
+      "Which percentile should I use 50th, 75th, or 90th?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 2,
+    "initial_question": "Compare Sales and Business Operations for Total Cash values across Leads.",
+    "follow_ups": [
+      "Include Variable Pay or fixed only?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 3,
+    "initial_question": "Compare Marketing and Business Operations and tell me the % difference in Variable Pay for Senior Associates.",
+    "follow_ups": [
+      "Normalize Variable Pay as % of Base or Total Cash?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 4,
+    "initial_question": "Compare Human Resources and Business Operations on Base Salary at the Director level.",
+    "follow_ups": [
+      "Should I compare 2024 CFY or 2023 LFY?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 5,
+    "initial_question": "Compare Product Management and Engineering and tell me the % difference in Total Compensation across senior employees.",
+    "follow_ups": [
+      "Limit to 75th percentile?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 6,
+    "initial_question": "Compare Analyst and Senior Analyst and tell me the % difference in Total Compensation in Finance.",
+    "follow_ups": [
+      "Show in both absolute and % change?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 7,
+    "initial_question": "Compare Engineer I and Engineer II and tell me the % difference in Base Salary in Engineering.",
+    "follow_ups": [
+      "Include Variable Pay as bonus equivalent?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 8,
+    "initial_question": "Compare Manager and Director and tell me the % difference in Total Cash in Sales.",
+    "follow_ups": [
+      "Use midpoint or actual reported values?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 9,
+    "initial_question": "Compare Associate and Senior Associate and tell me the % difference in Variable Pay in Marketing.",
+    "follow_ups": [
+      "Convert Variable Pay to % of Base?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 10,
+    "initial_question": "Compare Data Scientist and Machine Learning Engineer and tell me the % difference in Total Compensation in Engineering.",
+    "follow_ups": [
+      "Use 75th percentile data?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 11,
+    "initial_question": "Compare Business Analyst and Financial Analyst and tell me the % difference in Base Salary in Finance.",
+    "follow_ups": [
+      "Include any equity or bonus?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 12,
+    "initial_question": "Compare Sales Executive and Account Manager and tell me the % difference in Total Cash in Sales.",
+    "follow_ups": [
+      "Which percentile\u00e2\u20ac\u201dmean, median, or 90th?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 13,
+    "initial_question": "Compare HR Specialist and HR Generalist and tell me the % difference in Total Compensation in Human Resources.",
+    "follow_ups": [
+      "Show variance between Base and Variable separately?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 14,
+    "initial_question": "Compare Engineer II CFY Base Salary and LFY Base Salary in Engineering.",
+    "follow_ups": [
+      "Include bonus trends as well?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 15,
+    "initial_question": "Compare Analyst CFY Total Compensation and LFY Total Compensation in Finance.",
+    "follow_ups": [
+      "Display growth across 10th to 90th percentile?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 16,
+    "initial_question": "Compare Manager CFY Total Cash and LFY Total Cash in Sales.",
+    "follow_ups": [
+      "Include equity component?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 17,
+    "initial_question": "Compare Director CFY Variable Pay and LFY Variable Pay in Business Operations.",
+    "follow_ups": [
+      "Display as % change year-over-year?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 18,
+    "initial_question": "Compare Product Manager CFY Total Compensation vs LFY Total Compensation in Product Management.",
+    "follow_ups": [
+      "Include Base and Cash separately?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 19,
+    "initial_question": "Compare Engineer I and Engineer II at the 75th percentile of Base Salary in Engineering.",
+    "follow_ups": [
+      "Switch to 50th or 90th percentile?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 20,
+    "initial_question": "Compare Sales Executive and Account Manager at the 90th percentile of Total Cash in Sales.",
+    "follow_ups": [
+      "Include Variable Pay?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 21,
+    "initial_question": "Compare Financial Analyst and Business Analyst at the 50th percentile of Total Compensation in Finance.",
+    "follow_ups": [
+      "Add LFY data for comparison?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 22,
+    "initial_question": "Compare Data Engineer and Machine Learning Engineer at the 25th percentile of Base Salary in Engineering.",
+    "follow_ups": [
+      "Normalize by years of experience?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 23,
+    "initial_question": "Compare Marketing Specialist and Marketing Manager at the 75th percentile of Variable Pay in Marketing.",
+    "follow_ups": [
+      "Display in USD or % of Base?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 24,
+    "initial_question": "Compare overall Total Compensation growth between Finance and Engineering across all levels.",
+    "follow_ups": [
+      "Break down by Base, Total Cash, and Variable components."
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 25,
+    "initial_question": "Compare Total Cash across all functions for Senior Supervisors.",
+    "follow_ups": [
+      "Use median values?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 26,
+    "initial_question": "Compare Variable Pay distributions for Business Operations vs Sales.",
+    "follow_ups": [
+      "Express Variable as % of Total Compensation?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 27,
+    "initial_question": "Compare Base Salary differences across top 3 departments.",
+    "follow_ups": [
+      "Display results by job level as well?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 28,
+    "initial_question": "Compare Total Compensation variance across regions within Engineering.",
+    "follow_ups": [
+      "Restrict to US-based data only?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 29,
+    "initial_question": "Compare equity or stock-based components across Product Management and Engineering.",
+    "follow_ups": [
+      "Include Variable Pay too?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 30,
+    "initial_question": "Compare gender pay gap in Total Cash across Business Operations.",
+    "follow_ups": [
+      "Filter to Senior levels?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 31,
+    "initial_question": "Compare Finance CFY Total Compensation vs Engineering CFY Total Compensation for Managers.",
+    "follow_ups": [
+      "Add LFY trend line?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 32,
+    "initial_question": "Compare HR and Sales for Variable Pay ratios as % of Total Cash.",
+    "follow_ups": [
+      "Display both Base and Total Comp differences?"
+    ],
+    "category": "Comparison",
+    "context": null
+  },
+  {
+    "id": 33,
+    "initial_question": "Create salary ranges for all levels in Finance, midpoint at 50th percentile, spread 20%, based on Base Salary.",
+    "follow_ups": [
+      "Extend to Total Cash as well?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 34,
+    "initial_question": "Create salary ranges for all levels in Engineering, midpoint at 50th percentile of Total Compensation, spread 25%.",
+    "follow_ups": [
+      "Should ranges overlap between levels?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 35,
+    "initial_question": "Create salary ranges for all levels in Sales, midpoint at 75th percentile of Total Cash, spread 30%.",
+    "follow_ups": [
+      "Include Variable Pay adjustment?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 36,
+    "initial_question": "Create salary ranges for all levels in Marketing, midpoint = 10th percentile, spread = 20%, based on Base Salary.",
+    "follow_ups": [
+      "Cap minimums below 25th percentile?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 37,
+    "initial_question": "Create salary ranges for all levels in Business Operations, midpoint = 50th percentile of Total Compensation, spread 20%.",
+    "follow_ups": [
+      "Include Variable Pay?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 38,
+    "initial_question": "Create salary ranges for Analyst in Finance, midpoint = 50th percentile of Base Salary, spread 25%.",
+    "follow_ups": [
+      "Add Total Cash variant?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 39,
+    "initial_question": "Create salary ranges for Manager in Sales, midpoint = 50th percentile of Total Cash, spread 20%.",
+    "follow_ups": [
+      "Separate bonus band?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 40,
+    "initial_question": "Create salary ranges for Engineer II in Engineering, midpoint = 75th percentile of Total Compensation, spread 20%.",
+    "follow_ups": [
+      "Include equity?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 41,
+    "initial_question": "Create salary ranges for Senior Supervisor in Business Operations, midpoint = 10th percentile of Base Salary, spread 25%.",
+    "follow_ups": [
+      "Should I generate 5-level progression automatically?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 42,
+    "initial_question": "Create salary ranges for Product Manager in Product Management, midpoint = 50th percentile of Total Comp, spread = 20%.",
+    "follow_ups": [
+      "Compare to market median?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 43,
+    "initial_question": "Create salary ranges for HR Specialist in HR, midpoint = 25th percentile, spread = 15%, using Base Salary.",
+    "follow_ups": [
+      "Should I include Total Cash variant?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 44,
+    "initial_question": "Create salary ranges for Marketing Manager in Marketing, midpoint = 50th percentile, spread = 20%, based on Total Compensation.",
+    "follow_ups": [
+      "Show progression from L1\u00e2\u20ac\u201cL5?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 45,
+    "initial_question": "Create salary ranges for all roles in Engineering, midpoint = 90th percentile, spread = 30%, based on Base Salary.",
+    "follow_ups": [
+      "Display in 5-level table?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 46,
+    "initial_question": "Generate salary bands for Finance Managers, midpoint = 50th percentile of Total Cash, spread = 25%.",
+    "follow_ups": [
+      "Include bonus breakdown?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 47,
+    "initial_question": "Create salary ranges for all levels in Business Operations, midpoint = 75th percentile, spread = 20%, using Variable Pay as base.",
+    "follow_ups": [
+      "Express as % of Total Comp?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 48,
+    "initial_question": "Create salary ranges for all roles in Product Management, midpoint = 50th percentile, spread = 20%, using Total Compensation.",
+    "follow_ups": [
+      "Limit to U.S. data?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 49,
+    "initial_question": "Create salary ranges for Senior Analyst in Finance, midpoint = 50th percentile of Total Cash, spread = 25%.",
+    "follow_ups": [
+      "Generate Total Comp equivalent?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 50,
+    "initial_question": "Create salary ranges for Associate level in HR, midpoint = 25th percentile of Base Salary, spread = 20%.",
+    "follow_ups": [
+      "Compare with peer departments?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 51,
+    "initial_question": "Create salary ranges for Sales Executives, midpoint = 75th percentile of Total Cash, spread = 15%.",
+    "follow_ups": [
+      "Include Variable Pay and commission?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 52,
+    "initial_question": "Build salary bands for Director level in Engineering, midpoint = 50th percentile, spread = 20%, for Total Comp.",
+    "follow_ups": [
+      "Show min\u00e2\u20ac\u201cmid\u00e2\u20ac\u201cmax visually?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 53,
+    "initial_question": "Create salary structure for all levels in Marketing, midpoint = 10th percentile, spread = 30%, based on Base Salary.",
+    "follow_ups": [
+      "Extend to Total Cash?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 54,
+    "initial_question": "Create salary range table for Finance, midpoint = median Total Comp, spread = 20%, across all levels.",
+    "follow_ups": [
+      "Round to nearest thousand?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 55,
+    "initial_question": "Generate five-level salary ranges in Business Operations, midpoint = 50th percentile of Base Salary, spread = 25%.",
+    "follow_ups": [
+      "Include both Total Cash and Variable?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 56,
+    "initial_question": "Create salary bands for Engineering, midpoint = 75th percentile of Total Compensation, spread = 20%.",
+    "follow_ups": [
+      "Display comparison vs LFY?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 57,
+    "initial_question": "Create salary structure for Product Management, midpoint = 50th percentile of Base Salary, spread = 25%.",
+    "follow_ups": [
+      "Include Total Cash variant?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 58,
+    "initial_question": "Create salary bands for HR, midpoint = 25th percentile, spread = 20%, using Variable Pay.",
+    "follow_ups": [
+      "Convert to Total Comp equivalence?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 59,
+    "initial_question": "Create salary structure for Finance, midpoint = 90th percentile of Total Compensation, spread = 30%.",
+    "follow_ups": [
+      "Restrict to Senior levels?"
+    ],
+    "category": "Salary Range",
+    "context": null
+  },
+  {
+    "id": 60,
+    "initial_question": "What is the salary progression between Analyst and Senior Analyst in Finance?",
+    "follow_ups": [
+      "Use Total Compensation or Base Salary?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 61,
+    "initial_question": "What is the progression trend from Engineer I to Engineer III in Engineering?",
+    "follow_ups": [
+      "Show Base, Total Cash, and Variable Pay separately?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 62,
+    "initial_question": "What is the progression rate from Associate to Manager in Sales?",
+    "follow_ups": [
+      "Compute growth % using Total Comp?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 63,
+    "initial_question": "What is the Base Salary progression between Marketing Specialist and Marketing Director?",
+    "follow_ups": [
+      "Add Total Cash progression too?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 64,
+    "initial_question": "What is the Total Cash progression between Manager and Director in Business Operations?",
+    "follow_ups": [
+      "Compare with industry average?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 65,
+    "initial_question": "Create five salary levels in Finance if rate = 25%, starting from Base Salary midpoint.",
+    "follow_ups": [
+      "Show in Total Comp as well?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 66,
+    "initial_question": "Create salary progression for Product Management, 5 levels, using Total Compensation midpoint.",
+    "follow_ups": [
+      "Include Variable Pay as bonus component?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 67,
+    "initial_question": "Define progression curve for Engineering roles based on Base Salary increases.",
+    "follow_ups": [
+      "Should I cap progression at 2\u00c3\u2014 Base?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 68,
+    "initial_question": "What is the promotion uplift % between Manager and Senior Manager in Sales?",
+    "follow_ups": [
+      "Use Total Cash or Base only?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 69,
+    "initial_question": "What is the Variable Pay progression across 5 job levels in Marketing?",
+    "follow_ups": [
+      "Express as % of Base?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 70,
+    "initial_question": "Build progression table for Finance department, using Total Comp spread = 15% per level.",
+    "follow_ups": [
+      "Display for all levels?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 71,
+    "initial_question": "What is the salary uplift between Director and VP levels in Business Operations?",
+    "follow_ups": [
+      "Include equity data?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 72,
+    "initial_question": "Model career progression in Engineering assuming Base Salary growth 10% per level.",
+    "follow_ups": [
+      "Extend to Total Compensation growth?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 73,
+    "initial_question": "Define salary steps for Marketing, assuming Variable Pay grows 20% each level.",
+    "follow_ups": [
+      "Show cumulative growth?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 74,
+    "initial_question": "Estimate pay progression in HR for 5 levels, assuming Base Salary spread = 25%.",
+    "follow_ups": [
+      "Include bonus payout?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 75,
+    "initial_question": "Compare Finance and Engineering progression from Associate to Senior Manager based on Total Compensation.",
+    "follow_ups": [
+      "Include Base trend separately?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 76,
+    "initial_question": "Compute annualized salary progression rate for Sales using Total Cash median data.",
+    "follow_ups": [
+      "Include Variable Pay trend?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 77,
+    "initial_question": "Build progression projection for Business Operations, 5 levels, using 50th percentile of Base Salary.",
+    "follow_ups": [
+      "Show 25% rate scenario too?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 78,
+    "initial_question": "Show cross-functional progression comparison between Engineering and Product Management using Total Comp.",
+    "follow_ups": [
+      "Add Base variant?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 79,
+    "initial_question": "Compute year-to-year progression in Variable Pay for Managers across departments.",
+    "follow_ups": [
+      "Include 3-year average?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 80,
+    "initial_question": "What is the average progression % between adjacent levels in Finance, based on Total Cash?",
+    "follow_ups": [
+      "Show median too?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 81,
+    "initial_question": "Generate Base Salary ladder for Engineering, assuming 25% growth between levels.",
+    "follow_ups": [
+      "Include Total Comp comparison?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 82,
+    "initial_question": "Create progression curve for Sales Executives, using Total Cash with 20% increments.",
+    "follow_ups": [
+      "Add bonus adjustment?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 83,
+    "initial_question": "Build 5-step salary scale for Product Managers, using Total Compensation as baseline.",
+    "follow_ups": [
+      "Display % and dollar increase both?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 84,
+    "initial_question": "Define promotion-based pay growth for HR Managers, based on Base Salary.",
+    "follow_ups": [
+      "Show Total Cash equivalent?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 85,
+    "initial_question": "Model career ladder in Engineering, each step increasing Total Compensation by 15%.",
+    "follow_ups": [
+      "Cap at VP level?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 86,
+    "initial_question": "What is the expected Variable Pay growth between Analyst and Director in Finance?",
+    "follow_ups": [
+      "Include total cost impact?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 87,
+    "initial_question": "Compute cross-level progression for Marketing roles, using Total Cash data.",
+    "follow_ups": [
+      "Show 3-year trend?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 88,
+    "initial_question": "Build salary growth model in Business Operations, 5 levels, Total Compensation midpoint, 20% spread.",
+    "follow_ups": [
+      "Include equity conversion?"
+    ],
+    "category": "Progression",
+    "context": null
+  },
+  {
+    "id": 89,
+    "initial_question": "Create progression overview for all departments, comparing Base Salary, Total Cash, and Variable Pay growth patterns.",
+    "follow_ups": [
+      "Highlight highest growth function?"
+    ],
+    "category": "Progression",
+    "context": null
+  }
+]
