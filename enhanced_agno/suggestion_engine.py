@@ -202,8 +202,15 @@ class SuggestionEngine:
         prev_query = history[-1] if history else None
         
         if prev_query:
-            prev_entities = prev_query.get('entities', {})
-            prev_functions = prev_entities.get('functions', [])
+            # Handle both Interaction objects and dictionaries
+            if hasattr(prev_query, 'entities'):
+                # It's an Interaction object
+                prev_entities = prev_query.entities
+            else:
+                # It's a dictionary
+                prev_entities = prev_query.get('entities', {})
+            
+            prev_functions = prev_entities.get('functions', []) if isinstance(prev_entities, dict) else getattr(prev_entities, 'functions', [])
             
             # Suggest expanding scope
             if prev_functions:
