@@ -165,7 +165,9 @@ class ToolInventory:
             "*_analysis.py",
             "*_chart.py",
             "*_salary*.py",
+            "*_report.py",
             "compare_*.py",
+            "generate_*.py",
         ]
         
         for pattern in patterns:
