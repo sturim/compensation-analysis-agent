@@ -164,7 +164,15 @@ class EnhancedAgnoAgent:
             print("   [4/5] Skipping visualization")
             print("   [5/5] Generating response...")
         
-        # Handle comparison queries
+        # Handle title comparison queries (within single function)
+        elif entities.get('query_pattern') == 'title_comparison' and len(entities.get('job_titles', [])) >= 2:
+            print("   [2/5] Detected job title comparison query...")
+            results = self._compare_job_titles(entities)
+            print("   [3/5] Title comparison complete")
+            print("   [4/5] Skipping visualization")
+            print("   [5/5] Generating response...")
+        
+        # Handle comparison queries (between functions)
         elif entities['intent'] == 'compare' and len(entities['functions']) >= 2:
             print("   [2/5] Detected comparison query...")
             
@@ -832,6 +840,263 @@ class EnhancedAgnoAgent:
                 'message': f'Error creating salary ranges: {str(e)}',
                 'query_results': {'status': 'error', 'data': []}
             }
+    
+    def _compare_job_titles(self, entities: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Compare two job titles within a single function.
+        
+        Args:
+            entities: Extracted entities including job_titles and function
+            
+        Returns:
+            Dictionary with comparison results
+        """
+        try:
+            job_titles = entities.get('job_titles', [])
+            function = entities.get('functions', [None])[0]
+            
+            if len(job_titles) < 2:
+                return {
+                    'status': 'error',
+                    'message': 'Need at least 2 job titles to compare',
+                    'query_results': {'status': 'error', 'data': []}
+                }
+            
+            title1, title2 = job_titles[:2]
+            
+            print(f"         Comparing: '{title1}' vs '{title2}' in {function}")
+            
+            # Search for each title
+            roles1 = self._search_job_roles(title1, search_in="all")
+            roles2 = self._search_job_roles(title2, search_in="all")
+            
+            # Filter by function if specified
+            if function:
+                roles1 = [r for r in roles1 if function.lower() in r.get('job_function', '').lower()]
+                roles2 = [r for r in roles2 if function.lower() in r.get('job_function', '').lower()]
+            
+            if not roles1:
+                # Suggest alternatives
+                alternatives = self._suggest_similar_roles(title1, function)
+                alt_msg = f"\n\nSimilar roles found: {', '.join(alternatives[:5])}" if alternatives else ""
+                return {
+                    'status': 'error',
+                    'message': f"No roles found matching '{title1}' in {function}.{alt_msg}",
+                    'query_results': {'status': 'error', 'data': []},
+                    'suggestions': alternatives
+                }
+            
+            if not roles2:
+                # Suggest alternatives
+                alternatives = self._suggest_similar_roles(title2, function)
+                alt_msg = f"\n\nSimilar roles found: {', '.join(alternatives[:5])}" if alternatives else ""
+                return {
+                    'status': 'error',
+                    'message': f"No roles found matching '{title2}' in {function}.{alt_msg}",
+                    'query_results': {'status': 'error', 'data': []},
+                    'suggestions': alternatives
+                }
+            
+            # Get compensation data for both titles
+            conn = sqlite3.connect(self.db_path, timeout=10)
+            
+            # Determine which compensation column to use
+            question_lower = entities.get('original_question', '').lower()
+            if 'total comp' in question_lower or 'total cash' in question_lower:
+                comp_col = 'cm.total_comp_p50'
+            else:
+                comp_col = 'cm.base_salary_lfy_p50'
+            
+            # Query for title 1
+            title1_area = roles1[0].get('job_area', '')
+            title1_focus = roles1[0].get('job_focus', '')
+            
+            query1 = f"""
+            SELECT 
+                jp.job_title,
+                jp.job_area,
+                jp.job_focus,
+                jp.job_level,
+                AVG({comp_col}) as avg_comp,
+                COUNT(DISTINCT jp.id) as position_count
+            FROM job_positions jp
+            JOIN compensation_metrics cm ON jp.id = cm.job_position_id
+            WHERE jp.job_function LIKE '%{function}%'
+              AND (jp.job_area LIKE '%{title1_area}%' OR jp.job_focus LIKE '%{title1_focus}%' OR jp.job_title LIKE '%{title1}%')
+              AND {comp_col} IS NOT NULL
+            GROUP BY jp.job_level
+            ORDER BY avg_comp
+            """
+            
+            df1 = pd.read_sql_query(query1, conn)
+            
+            # Query for title 2
+            title2_area = roles2[0].get('job_area', '')
+            title2_focus = roles2[0].get('job_focus', '')
+            
+            query2 = f"""
+            SELECT 
+                jp.job_title,
+                jp.job_area,
+                jp.job_focus,
+                jp.job_level,
+                AVG({comp_col}) as avg_comp,
+                COUNT(DISTINCT jp.id) as position_count
+            FROM job_positions jp
+            JOIN compensation_metrics cm ON jp.id = cm.job_position_id
+            WHERE jp.job_function LIKE '%{function}%'
+              AND (jp.job_area LIKE '%{title2_area}%' OR jp.job_focus LIKE '%{title2_focus}%' OR jp.job_title LIKE '%{title2}%')
+              AND {comp_col} IS NOT NULL
+            GROUP BY jp.job_level
+            ORDER BY avg_comp
+            """
+            
+            df2 = pd.read_sql_query(query2, conn)
+            conn.close()
+            
+            if df1.empty or df2.empty:
+                return {
+                    'status': 'error',
+                    'message': f"No compensation data found for one or both titles",
+                    'query_results': {'status': 'error', 'data': []}
+                }
+            
+            # Calculate overall averages
+            avg1 = df1['avg_comp'].mean()
+            avg2 = df2['avg_comp'].mean()
+            diff = avg2 - avg1
+            pct_diff = (diff / avg1 * 100) if avg1 > 0 else 0
+            
+            # Combine data
+            combined_data = pd.concat([df1, df2], ignore_index=True)
+            
+            results = {
+                'status': 'success',
+                'query_results': {
+                    'status': 'success',
+                    'data': combined_data.to_dict('records'),
+                    'row_count': len(combined_data)
+                },
+                'title1': title1,
+                'title2': title2,
+                'title1_matched': f"{roles1[0].get('job_area', '')} - {roles1[0].get('job_focus', '')}",
+                'title2_matched': f"{roles2[0].get('job_area', '')} - {roles2[0].get('job_focus', '')}",
+                'avg_comp1': float(avg1),
+                'avg_comp2': float(avg2),
+                'difference': float(diff),
+                'percent_difference': float(pct_diff),
+                'summary': f"Compared {title1} vs {title2} in {function}: {pct_diff:+.1f}% difference"
+            }
+            
+            return results
+            
+        except Exception as e:
+            print(f"   ❌ Error comparing job titles: {e}")
+            return {
+                'status': 'error',
+                'message': f'Error comparing job titles: {str(e)}',
+                'query_results': {'status': 'error', 'data': []}
+            }
+    
+    def _suggest_similar_roles(self, search_term: str, function: str) -> List[str]:
+        """
+        Suggest similar roles when exact match not found.
+        
+        Args:
+            search_term: The term that wasn't found
+            function: The job function to search within
+            
+        Returns:
+            List of similar role names
+        """
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=10)
+            
+            # Get all unique job areas and focuses in the function
+            query = f"""
+            SELECT DISTINCT job_area, job_focus
+            FROM job_positions 
+            WHERE job_function LIKE '%{function}%'
+              AND job_area IS NOT NULL
+              AND job_focus IS NOT NULL
+            LIMIT 20
+            """
+            
+            df = pd.read_sql_query(query, conn)
+            conn.close()
+            
+            if df.empty:
+                return []
+            
+            # Combine area and focus
+            suggestions = []
+            for _, row in df.iterrows():
+                area = row['job_area']
+                focus = row['job_focus']
+                if area and area not in suggestions:
+                    suggestions.append(area)
+                if focus and focus not in suggestions and focus != area:
+                    suggestions.append(focus)
+            
+            return suggestions[:10]
+            
+        except Exception as e:
+            print(f"   ⚠️  Error suggesting roles: {e}")
+            return []
+    
+    def _search_job_roles(self, search_term: str, search_in: str = "all") -> List[Dict[str, Any]]:
+        """
+        Intelligently search for job roles across multiple columns.
+        
+        Args:
+            search_term: Term to search for (e.g., "Business Analyst", "Software Engineer")
+            search_in: Where to search - "all", "title", "area", "focus", "function"
+            
+        Returns:
+            List of matching roles with their details
+        """
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=10)
+            
+            # Build search query based on search_in parameter
+            if search_in == "all":
+                where_clause = f"""
+                    job_title LIKE '%{search_term}%' OR
+                    job_function LIKE '%{search_term}%' OR
+                    job_area LIKE '%{search_term}%' OR
+                    job_focus LIKE '%{search_term}%'
+                """
+            elif search_in == "title":
+                where_clause = f"job_title LIKE '%{search_term}%'"
+            elif search_in == "area":
+                where_clause = f"job_area LIKE '%{search_term}%'"
+            elif search_in == "focus":
+                where_clause = f"job_focus LIKE '%{search_term}%'"
+            elif search_in == "function":
+                where_clause = f"job_function LIKE '%{search_term}%'"
+            else:
+                where_clause = f"job_title LIKE '%{search_term}%'"
+            
+            query = f"""
+            SELECT DISTINCT 
+                job_function, job_area, job_focus, job_category, job_level, job_title
+            FROM job_positions 
+            WHERE {where_clause}
+            ORDER BY job_function, job_area, job_level
+            LIMIT 20
+            """
+            
+            df = pd.read_sql_query(query, conn)
+            conn.close()
+            
+            if df.empty:
+                return []
+            
+            return df.to_dict('records')
+            
+        except Exception as e:
+            print(f"   ⚠️  Role search error: {e}")
+            return []
     
     def _fuzzy_match_function(self, function_name: str) -> str:
         """

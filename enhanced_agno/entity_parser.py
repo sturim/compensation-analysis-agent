@@ -43,13 +43,13 @@ class EntityParser:
             'technology': ['technology', 'tech'],
         }
         
-        # Job level patterns
+        # Job level patterns with common aliases
         self.levels = {
             'Entry (P1)': ['entry', 'p1', 'junior'],
-            'Developing (P2)': ['developing', 'p2'],
-            'Career (P3)': ['career', 'p3', 'mid-level'],
-            'Advanced (P4)': ['advanced', 'p4'],
-            'Expert (P5)': ['expert', 'p5', 'principal'],
+            'Developing (P2)': ['developing', 'p2', 'associate'],  # Associate = P2
+            'Career (P3)': ['career', 'p3', 'mid-level', 'senior associate'],  # Senior Associate = P3
+            'Advanced (P4)': ['advanced', 'p4', 'staff'],  # Staff = P4
+            'Expert (P5)': ['expert', 'p5', 'senior staff'],  # Senior Staff = P5
             'Supervisor (M1)': ['supervisor', 'm1'],
             'Sr Supervisor (M2)': ['sr supervisor', 'senior supervisor', 'm2'],
             'Manager (M3)': ['manager', 'm3', 'mgr'],
@@ -59,14 +59,49 @@ class EntityParser:
             'Principal (P6)': ['principal', 'p6'],
         }
         
-        # Intent patterns
+        # Level aliases for common terms
+        self.level_aliases = {
+            'associate': 'Developing (P2)',
+            'senior associate': 'Career (P3)',
+            'staff': 'Advanced (P4)',
+            'senior staff': 'Expert (P5)',
+            'sr staff': 'Expert (P5)',
+        }
+        
+        # Intent patterns with consistency rules
         self.intents = {
             'create_ranges': ['create salary range', 'create range', 'build range', 'salary structure', 'pay structure', 'range structure'],
             'compare': ['compare', 'versus', 'vs', 'difference between'],
+            'compare_titles': ['compare', 'versus', 'vs', 'difference between'],  # Will be refined in extraction
             'visualize': ['show', 'display', 'chart', 'graph', 'plot', 'visualize'],
             'analyze': ['analyze', 'analysis', 'breakdown', 'examine'],
             'progression': ['progression', 'career path', 'growth', 'advancement'],
+            'search': ['search', 'find', 'look for', 'locate'],
             'query': ['what', 'how much', 'salary', 'compensation'],
+        }
+        
+        # Query pattern consistency rules
+        self.query_patterns = {
+            'broad_category': {
+                'description': 'Queries like "Engineering salaries" or "Finance compensation"',
+                'strategy': 'search_roles_then_aggregate',
+                'indicators': ['all', 'salaries', 'compensation', 'overview']
+            },
+            'specific_role': {
+                'description': 'Queries like "Software Engineer P3" or "Finance Manager M3"',
+                'strategy': 'direct_query_with_filters',
+                'indicators': ['specific level', 'exact title', 'particular role']
+            },
+            'comparison': {
+                'description': 'Queries comparing two entities',
+                'strategy': 'query_both_then_compare',
+                'indicators': ['compare', 'vs', 'versus', 'difference']
+            },
+            'range_creation': {
+                'description': 'Queries asking to create salary ranges',
+                'strategy': 'calculate_ranges_with_spread',
+                'indicators': ['create range', 'salary structure', 'pay structure']
+            }
         }
     
     def extract(self, question: str) -> Dict[str, Any]:
@@ -89,13 +124,51 @@ class EntityParser:
             'metrics': self._extract_metrics(question_lower),
             'percentile': self._extract_percentile(question_lower),
             'spread': self._extract_spread(question_lower),
+            'job_titles': self._extract_job_titles(question_lower),
             'original_question': question
         }
         
         # Validate against database
         entities = self.validate_against_db(entities)
         
+        # Detect query pattern for consistency
+        entities['query_pattern'] = self._detect_query_pattern(question_lower, entities)
+        
         return entities
+    
+    def _detect_query_pattern(self, text: str, entities: Dict[str, Any]) -> str:
+        """
+        Detect which query pattern this matches for consistency.
+        
+        Returns:
+            Pattern name: 'broad_category', 'specific_role', 'comparison', 'title_comparison', 'range_creation'
+        """
+        # Check for range creation
+        if entities.get('intent') == 'create_ranges':
+            return 'range_creation'
+        
+        # Check for title comparison (compare intent + job titles + single function)
+        if entities.get('intent') == 'compare' and len(entities.get('job_titles', [])) >= 2 and len(entities.get('functions', [])) == 1:
+            return 'title_comparison'
+        
+        # Check for function comparison
+        if entities.get('intent') == 'compare' or len(entities.get('functions', [])) >= 2:
+            return 'comparison'
+        
+        # Check for specific role (has both function and level)
+        if entities.get('functions') and entities.get('levels'):
+            return 'specific_role'
+        
+        # Check for broad category indicators
+        broad_indicators = ['all', 'salaries', 'compensation', 'overview', 'entire', 'whole']
+        if any(indicator in text for indicator in broad_indicators):
+            return 'broad_category'
+        
+        # Default to specific role if we have a function
+        if entities.get('functions'):
+            return 'specific_role'
+        
+        return 'query'
     
     def _extract_functions(self, text: str) -> List[str]:
         """Extract job functions from text"""
@@ -214,6 +287,58 @@ class EntityParser:
                 return float(match.group(1)) / 100.0
         
         return None  # No spread specified
+    
+    def _extract_job_titles(self, text: str) -> List[str]:
+        """
+        Extract job titles from comparison queries.
+        Looks for patterns like "Compare X and Y" or "X vs Y"
+        """
+        import re
+        
+        # Common job title keywords
+        title_keywords = [
+            'data scientist', 'machine learning engineer', 'ml engineer',
+            'software engineer', 'senior software engineer', 'staff engineer',
+            'product manager', 'program manager', 'project manager',
+            'business analyst', 'data analyst', 'financial analyst',
+            'accountant', 'controller', 'treasurer',
+            'recruiter', 'hr business partner', 'compensation analyst'
+        ]
+        
+        found_titles = []
+        
+        # Check for each keyword
+        for title in title_keywords:
+            if title in text:
+                found_titles.append(title)
+        
+        # If we found titles, return them
+        if found_titles:
+            return found_titles
+        
+        # Try to extract from comparison patterns
+        # Pattern: "compare X and Y" or "X vs Y" or "X versus Y"
+        comparison_patterns = [
+            r'compare\s+([^and]+?)\s+and\s+([^in]+?)(?:\s+in|\s+tell|\s+for|$)',
+            r'([^vs]+?)\s+vs\.?\s+([^in]+?)(?:\s+in|\s+tell|\s+for|$)',
+            r'([^versus]+?)\s+versus\s+([^in]+?)(?:\s+in|\s+tell|\s+for|$)',
+        ]
+        
+        for pattern in comparison_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                title1 = match.group(1).strip()
+                title2 = match.group(2).strip()
+                
+                # Clean up common words
+                for word in ['the', 'a', 'an']:
+                    title1 = re.sub(r'\b' + word + r'\b', '', title1, flags=re.IGNORECASE).strip()
+                    title2 = re.sub(r'\b' + word + r'\b', '', title2, flags=re.IGNORECASE).strip()
+                
+                if title1 and title2:
+                    return [title1, title2]
+        
+        return []
     
     def _load_db_job_functions(self) -> List[str]:
         """Load distinct job functions from database"""
