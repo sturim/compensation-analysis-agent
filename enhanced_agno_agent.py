@@ -155,43 +155,88 @@ class EnhancedAgnoAgent:
                 entities['functions'] = reference['functions']
         
         # Step 2: Handle comparison queries specially
-        if entities['intent'] == 'compare' and len(entities['functions']) == 2:
+        if entities['intent'] == 'compare' and len(entities['functions']) >= 2:
             print("   [2/5] Detected comparison query...")
+            
+            # Fuzzy match function names
+            func1, func2 = entities['functions'][:2]
+            func1_matched = self._fuzzy_match_function(func1)
+            func2_matched = self._fuzzy_match_function(func2)
+            
+            if func1_matched != func1:
+                print(f"         Matched '{func1}' → '{func1_matched}'")
+            if func2_matched != func2:
+                print(f"         Matched '{func2}' → '{func2_matched}'")
+            
             print("   [3/5] Querying both functions...")
             
-            # Query both functions
-            func1, func2 = entities['functions']
-            
-            # Query first function
-            entities_func1 = entities.copy()
-            entities_func1['functions'] = [func1]
-            data1 = self._query_database(entities_func1, {})
-            
-            # Query second function
-            entities_func2 = entities.copy()
-            entities_func2['functions'] = [func2]
-            data2 = self._query_database(entities_func2, {})
-            
-            print("   [4/5] Creating comparison...")
-            # Use comparison engine
-            comparison = self.comparison_engine.compare_functions(data1, data2, func1, func2)
-            
-            # Create visualization
-            chart_path = self._create_comparison_visualization(data1, data2, func1, func2)
-            
-            results = {
-                'query_results': {
-                    'data': data1.get('data', []) + data2.get('data', []),
-                    'status': 'success',
-                    'row_count': data1.get('row_count', 0) + data2.get('row_count', 0)
-                },
-                'comparison': comparison,
-                'chart_path': chart_path,
-                'function1_data': data1,
-                'function2_data': data2
-            }
-            
-            print("   [5/5] Generating response...")
+            # Query both functions with proper connection management
+            try:
+                # Query first function
+                entities_func1 = entities.copy()
+                entities_func1['functions'] = [func1_matched]
+                data1 = self._query_database(entities_func1, {})
+                
+                # Query second function
+                entities_func2 = entities.copy()
+                entities_func2['functions'] = [func2_matched]
+                data2 = self._query_database(entities_func2, {})
+                
+                print("   [4/5] Creating comparison...")
+                
+                # Check if we have data for both functions
+                if data1.get('status') != 'success' or data2.get('status') != 'success':
+                    # Try to provide helpful error message
+                    missing = []
+                    if data1.get('status') != 'success':
+                        missing.append(func1_matched)
+                    if data2.get('status') != 'success':
+                        missing.append(func2_matched)
+                    
+                    results = {
+                        'status': 'error',
+                        'message': f'No data found for: {", ".join(missing)}',
+                        'query_results': {
+                            'status': 'error',
+                            'data': []
+                        }
+                    }
+                else:
+                    # Extract specific level if mentioned in query
+                    specific_level = entities.get('levels', [None])[0] if entities.get('levels') else None
+                    
+                    # Use comparison engine
+                    comparison = self.comparison_engine.compare_functions(
+                        data1, data2, func1_matched, func2_matched, specific_level=specific_level
+                    )
+                    
+                    # Create visualization
+                    chart_path = self._create_comparison_visualization(data1, data2, func1_matched, func2_matched)
+                    
+                    results = {
+                        'query_results': {
+                            'data': data1.get('data', []) + data2.get('data', []),
+                            'status': 'success',
+                            'row_count': data1.get('row_count', 0) + data2.get('row_count', 0)
+                        },
+                        'comparison': comparison,
+                        'chart_path': chart_path,
+                        'function1_data': data1,
+                        'function2_data': data2
+                    }
+                
+                print("   [5/5] Generating response...")
+                
+            except Exception as e:
+                print(f"   ❌ Database error: {e}")
+                results = {
+                    'status': 'error',
+                    'message': f'Database error: {str(e)}',
+                    'query_results': {
+                        'status': 'error',
+                        'data': []
+                    }
+                }
         else:
             # Step 2: Check for existing tools (NEW!)
             print("   [2/5] Checking for existing tools...")
@@ -370,7 +415,12 @@ class EnhancedAgnoAgent:
             
             where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
             
-            percentile_col = f'cm.base_salary_lfy_{percentile}'
+            # Determine which compensation column to use based on query
+            question_lower = entities.get('original_question', '').lower()
+            if 'total comp' in question_lower or 'total cash' in question_lower:
+                percentile_col = f'cm.total_comp_{percentile}'
+            else:
+                percentile_col = f'cm.base_salary_lfy_{percentile}'
             
             # Build ORDER BY clause - prioritize standard career levels
             order_by = "avg_salary ASC"
@@ -473,7 +523,6 @@ class EnhancedAgnoAgent:
             df = pd.read_sql_query(query, conn, params=query_params)
             
             self.query_logger.log_result_count(len(df), 'query_result')
-            conn.close()
             
             if self.debug:
                 print(f"📊 Query returned {len(df)} rows (of {total_available} total)")
@@ -482,10 +531,11 @@ class EnhancedAgnoAgent:
                     print(f"📈 Sample row: {df.iloc[0].to_dict()}")
             
             if df.empty:
-                # Get available job functions for suggestions
+                # Get available job functions for suggestions BEFORE closing connection
                 cursor = conn.cursor()
                 cursor.execute("SELECT DISTINCT job_function FROM job_positions ORDER BY job_function LIMIT 10")
                 available_functions = [row[0] for row in cursor.fetchall()]
+                conn.close()
                 
                 return {
                     'status': 'no_results',
@@ -494,6 +544,9 @@ class EnhancedAgnoAgent:
                     'suggestions': available_functions,
                     'help': 'Try one of the available job functions listed above'
                 }
+            
+            # Close connection after all queries are done
+            conn.close()
             
             # Check if results were limited
             is_limited = limit is not None and len(df) < total_available
@@ -685,6 +738,59 @@ class EnhancedAgnoAgent:
             'max_salary': max(salaries) if salaries else 0,
             'median_salary': sorted(salaries)[len(salaries)//2] if salaries else 0,
         }
+    
+    def _fuzzy_match_function(self, function_name: str) -> str:
+        """
+        Fuzzy match function name to database values.
+        Handles common variations and partial matches.
+        """
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=10)
+            cursor = conn.cursor()
+            
+            # Get all available functions
+            cursor.execute("SELECT DISTINCT job_function FROM job_positions ORDER BY job_function")
+            available_functions = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            
+            function_lower = function_name.lower()
+            
+            # Check for common aliases FIRST (before any other matching)
+            aliases = {
+                'business operations': 'Corporate & Business Services',
+                'business services': 'Corporate & Business Services',
+                'corporate services': 'Corporate & Business Services',
+                'business ops': 'Corporate & Business Services',
+                'hr': 'Human Resources',
+                'it': 'Information Technology',
+                'tech': 'Information Technology',
+                'engineering': 'Engineering',
+                'eng': 'Engineering',
+                'finance': 'Finance',
+                'fin': 'Finance',
+                'sales': 'Sales',
+                'ops': 'Operations',  # Only match "ops" alone, not "business ops"
+            }
+            
+            if function_lower in aliases:
+                return aliases[function_lower]
+            
+            # Exact match (case-insensitive)
+            for func in available_functions:
+                if func.lower() == function_lower:
+                    return func
+            
+            # Partial match - check if query is contained in any function name
+            for func in available_functions:
+                if function_lower in func.lower():
+                    return func
+            
+            # If no match found, return original
+            return function_name
+            
+        except Exception as e:
+            print(f"   ⚠️  Fuzzy match error: {e}")
+            return function_name
     
     def _create_comparison_visualization(self, data1: Dict[str, Any], data2: Dict[str, Any], 
                                         func1: str, func2: str) -> Optional[str]:

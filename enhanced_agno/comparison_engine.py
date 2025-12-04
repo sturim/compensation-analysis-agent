@@ -23,7 +23,7 @@ class ComparisonEngine:
         pass
     
     def compare_functions(self, data1: Dict[str, Any], data2: Dict[str, Any], 
-                         function1: str, function2: str) -> Dict[str, Any]:
+                         function1: str, function2: str, specific_level: str = None) -> Dict[str, Any]:
         """
         Create detailed side-by-side comparison of two functions.
         
@@ -32,6 +32,7 @@ class ComparisonEngine:
             data2: Results for second function
             function1: Name of first function
             function2: Name of second function
+            specific_level: Optional specific job level to compare
             
         Returns:
             Comprehensive comparison dictionary
@@ -45,9 +46,20 @@ class ComparisonEngine:
         df1 = pd.DataFrame(records1)
         df2 = pd.DataFrame(records2)
         
+        # If specific level requested, filter to that level
+        if specific_level and 'job_level' in df1.columns and 'job_level' in df2.columns:
+            df1_level = df1[df1['job_level'] == specific_level]
+            df2_level = df2[df2['job_level'] == specific_level]
+            
+            if not df1_level.empty and not df2_level.empty:
+                # Use level-specific data for comparison
+                df1 = df1_level
+                df2 = df2_level
+        
         comparison = {
             'function1': function1,
             'function2': function2,
+            'specific_level': specific_level,
             'metrics': {}
         }
         

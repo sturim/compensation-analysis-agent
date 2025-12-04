@@ -48,8 +48,10 @@ class EntityParser:
             'Entry (P1)': ['entry', 'p1', 'junior'],
             'Developing (P2)': ['developing', 'p2'],
             'Career (P3)': ['career', 'p3', 'mid-level'],
-            'Advanced (P4)': ['advanced', 'p4', 'senior'],
+            'Advanced (P4)': ['advanced', 'p4'],
             'Expert (P5)': ['expert', 'p5', 'principal'],
+            'Supervisor (M1)': ['supervisor', 'm1'],
+            'Sr Supervisor (M2)': ['sr supervisor', 'senior supervisor', 'm2'],
             'Manager (M3)': ['manager', 'm3', 'mgr'],
             'Sr Manager (M4)': ['sr manager', 'senior manager', 'm4'],
             'Director (M5)': ['director', 'm5'],
@@ -97,13 +99,32 @@ class EntityParser:
         """Extract job functions from text"""
         found = []
         
-        # First, try to match against actual database values
+        # First, check for common multi-word phrases that should be matched as aliases
+        # This prevents "Business Operations" from matching just "Operations"
+        phrase_aliases = {
+            'business operations': 'Corporate & Business Services',
+            'business services': 'Corporate & Business Services',
+            'corporate services': 'Corporate & Business Services',
+        }
+        
+        for phrase, alias in phrase_aliases.items():
+            if phrase in text:
+                found.append(alias)
+                # Remove the phrase from text to prevent partial matches
+                text = text.replace(phrase, '')
+        
+        # Then, try to match against actual database values
+        # Sort by length (longest first) to match longer names before shorter ones
         db_functions = self._load_db_job_functions()
         if db_functions:
-            for db_func in db_functions:
+            # Sort by length descending to match longer names first
+            sorted_functions = sorted(db_functions, key=len, reverse=True)
+            for db_func in sorted_functions:
                 # Check if the database function name appears in the text
-                if db_func.lower() in text:
+                if db_func.lower() in text and db_func not in found:
                     found.append(db_func)
+                    # Remove matched function to prevent overlapping matches
+                    text = text.replace(db_func.lower(), '')
         
         # If no DB matches, fall back to keyword matching
         if not found:
