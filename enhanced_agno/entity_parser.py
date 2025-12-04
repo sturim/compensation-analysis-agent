@@ -61,6 +61,7 @@ class EntityParser:
         
         # Intent patterns
         self.intents = {
+            'create_ranges': ['create salary range', 'create range', 'build range', 'salary structure', 'pay structure', 'range structure'],
             'compare': ['compare', 'versus', 'vs', 'difference between'],
             'visualize': ['show', 'display', 'chart', 'graph', 'plot', 'visualize'],
             'analyze': ['analyze', 'analysis', 'breakdown', 'examine'],
@@ -87,6 +88,7 @@ class EntityParser:
             'intent': self._extract_intent(question_lower),
             'metrics': self._extract_metrics(question_lower),
             'percentile': self._extract_percentile(question_lower),
+            'spread': self._extract_spread(question_lower),
             'original_question': question
         }
         
@@ -193,6 +195,25 @@ class EntityParser:
                 return percentile
         
         return 'p50'  # default to median
+    
+    def _extract_spread(self, text: str) -> Optional[float]:
+        """Extract spread percentage from text (e.g., '20%' -> 0.20)"""
+        import re
+        
+        # Look for patterns like "20%", "spread 20", "20 percent"
+        patterns = [
+            r'spread[:\s]+(\d+)%?',
+            r'(\d+)%\s+spread',
+            r'(\d+)\s*percent\s+spread',
+            r'spread[:\s]+(\d+)\s*percent',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                return float(match.group(1)) / 100.0
+        
+        return None  # No spread specified
     
     def _load_db_job_functions(self) -> List[str]:
         """Load distinct job functions from database"""

@@ -154,8 +154,18 @@ class EnhancedAgnoAgent:
             if not entities['functions']:
                 entities['functions'] = reference['functions']
         
-        # Step 2: Handle comparison queries specially
-        if entities['intent'] == 'compare' and len(entities['functions']) >= 2:
+        # Step 2: Handle special query types
+        
+        # Handle salary range creation
+        if entities['intent'] == 'create_ranges' and entities.get('functions'):
+            print("   [2/5] Detected salary range creation query...")
+            results = self._create_salary_ranges(entities)
+            print("   [3/5] Salary ranges created")
+            print("   [4/5] Skipping visualization")
+            print("   [5/5] Generating response...")
+        
+        # Handle comparison queries
+        elif entities['intent'] == 'compare' and len(entities['functions']) >= 2:
             print("   [2/5] Detected comparison query...")
             
             # Fuzzy match function names
@@ -738,6 +748,90 @@ class EnhancedAgnoAgent:
             'max_salary': max(salaries) if salaries else 0,
             'median_salary': sorted(salaries)[len(salaries)//2] if salaries else 0,
         }
+    
+    def _create_salary_ranges(self, entities: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create salary ranges for all levels in a function.
+        
+        Args:
+            entities: Extracted entities including function, spread, percentile
+            
+        Returns:
+            Dictionary with salary range data
+        """
+        try:
+            function = entities['functions'][0]
+            spread = entities.get('spread', 0.20)  # Default 20% spread
+            percentile = entities.get('percentile', 'p50')
+            
+            # Determine which salary column to use
+            question_lower = entities.get('original_question', '').lower()
+            if 'total comp' in question_lower or 'total cash' in question_lower:
+                salary_col = f'cm.total_comp_{percentile}'
+            else:
+                salary_col = f'cm.base_salary_lfy_{percentile}'
+            
+            conn = sqlite3.connect(self.db_path, timeout=10)
+            
+            # Query all levels for the function
+            query = f"""
+            SELECT 
+                jp.job_level,
+                {salary_col} as midpoint,
+                ROUND({salary_col} * (1 - {spread}/2), 0) as range_min,
+                ROUND({salary_col} * (1 + {spread}/2), 0) as range_max,
+                ROUND({salary_col} * {spread}, 0) as range_width,
+                cm.base_salary_lfy_emp_count as employee_count
+            FROM job_positions jp
+            JOIN compensation_metrics cm ON jp.id = cm.job_position_id
+            WHERE jp.job_function = ?
+              AND {salary_col} IS NOT NULL
+              AND {salary_col} > 0
+              AND jp.job_level NOT LIKE '%Roll-Up%'
+              AND jp.job_level NOT LIKE '%Executive%'
+            GROUP BY jp.job_level
+            ORDER BY midpoint ASC
+            """
+            
+            df = pd.read_sql_query(query, conn, params=[function])
+            conn.close()
+            
+            if df.empty:
+                return {
+                    'status': 'no_results',
+                    'message': f'No salary data found for {function}',
+                    'query_results': {'status': 'no_results', 'data': []}
+                }
+            
+            # Format the results
+            results = {
+                'status': 'success',
+                'query_results': {
+                    'status': 'success',
+                    'data': df.to_dict('records'),
+                    'row_count': len(df)
+                },
+                'function': function,
+                'spread': spread,
+                'percentile': percentile,
+                'total_levels': len(df),
+                'salary_range': {
+                    'min': float(df['midpoint'].min()),
+                    'max': float(df['midpoint'].max()),
+                    'average': float(df['midpoint'].mean())
+                },
+                'summary': f"Created salary ranges for {len(df)} levels in {function} with {spread*100:.0f}% spread"
+            }
+            
+            return results
+            
+        except Exception as e:
+            print(f"   ❌ Error creating salary ranges: {e}")
+            return {
+                'status': 'error',
+                'message': f'Error creating salary ranges: {str(e)}',
+                'query_results': {'status': 'error', 'data': []}
+            }
     
     def _fuzzy_match_function(self, function_name: str) -> str:
         """
