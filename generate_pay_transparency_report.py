@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 Generate Pay Transparency Range & Range Width Report
-Shows pay ranges for multiple job levels with Min, Midpoint, Max markers
+Creates a stacked visualization showing pay ranges across multiple job levels.
+Shows Min, Midpoint, Max markers for each level with range width percentages.
+This is specifically for pay transparency and range width analysis, NOT salary overviews.
 """
 
 import sqlite3

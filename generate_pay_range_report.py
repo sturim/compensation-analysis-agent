@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 Generate Pay Range Report with Market Data Comparison
-Shows Radford/Pave data points and watershed pay range (Min, Midpoint, Max)
+Shows Radford/Pave market data comparison with watershed pay range visualization.
+Displays market percentiles (P10-P90) alongside Min/Midpoint/Max pay structure.
+This is for market data analysis and pay range positioning, NOT pay transparency.
 """
 
 import sqlite3
