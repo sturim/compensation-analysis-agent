@@ -57,20 +57,33 @@ Available Tool:
 - Description: {self.description}
 - Capabilities: {self.capabilities}
 
-Rules:
-1. Comparison tools (with "compare", "vs" in name) should ONLY match comparison queries with 2+ functions
-2. Single-function tools should ONLY match queries about that specific function
-3. Don't match a comparison tool for a single-function query
-4. Consider the intent: query/analyze vs compare vs visualize
+CRITICAL Matching Rules:
+1. Report generation tools (pay_transparency, pay_range, job_architecture) work with ANY function
+   - If query asks for "pay transparency report for Sales", match generate_pay_transparency_report
+   - If query asks for "pay range report for Engineering", match generate_pay_range_report
+   - These tools accept function names as parameters - they are NOT function-specific
+   
+2. Match based on REPORT TYPE, not function name:
+   - "pay transparency" or "range width" → generate_pay_transparency_report
+   - "pay range" or "market data" → generate_pay_range_report
+   - "job architecture" or "career ladder" → generate_job_architecture_report
+   - "salary overview" (general) → salary overview tools
+   
+3. Comparison tools (with "compare", "vs") ONLY match comparison queries with 2+ functions
+
+4. The function name (Engineering, Sales, Finance, etc.) is a PARAMETER, not a requirement
+   - generate_pay_transparency_report works for ANY function
+   - generate_pay_range_report works for ANY function
+   - generate_job_architecture_report works for ANY function
 
 Should this tool be used for this query?
 Respond with ONLY "YES" or "NO" followed by a brief reason.
 
 Example responses:
-YES - Tool compares Engineering and Finance, query asks to compare them
-NO - Tool is for comparison but query asks for single function data
-NO - Tool is for Engineering but query asks for Finance
-YES - Tool provides Finance salaries and query asks for Finance data"""
+YES - Tool generates pay transparency reports for any function, query asks for pay transparency for Sales
+YES - Tool generates pay range reports for any function, query asks for pay range for Engineering
+NO - Tool is for salary overview but query specifically asks for pay transparency report
+NO - Tool is for market data but query asks for transparency report"""
 
             response = claude_client.messages.create(
                 model="claude-3-haiku-20240307",
@@ -78,8 +91,10 @@ YES - Tool provides Finance salaries and query asks for Finance data"""
                 messages=[{"role": "user", "content": prompt}]
             )
             
-            answer = response.content[0].text.strip().upper()
-            return answer.startswith("YES")
+            answer = response.content[0].text.strip()
+            # Debug output
+            # print(f"   🤖 LLM Tool Match for '{self.name}': {answer}")
+            return answer.upper().startswith("YES")
             
         except Exception as e:
             # Fallback to rule-based on error
@@ -266,7 +281,23 @@ class ToolInventory:
         if not functions:
             return None
         
-        # Use the matches() method with LLM support
+        # First, try exact keyword matching for report types
+        question_lower = question.lower()
+        
+        # Check for specific report type keywords
+        if 'transparency' in question_lower or 'range width' in question_lower:
+            if 'generate_pay_transparency_report' in self.tools:
+                return 'generate_pay_transparency_report'
+        
+        if ('pay range' in question_lower or 'market data' in question_lower) and 'transparency' not in question_lower:
+            if 'generate_pay_range_report' in self.tools:
+                return 'generate_pay_range_report'
+        
+        if 'architecture' in question_lower or 'career ladder' in question_lower:
+            if 'generate_job_architecture_report' in self.tools:
+                return 'generate_job_architecture_report'
+        
+        # Fall back to LLM matching for other cases
         for tool_name, tool_info in self.tools.items():
             if tool_info.matches(functions, intent, question, self.claude_client):
                 return tool_name
